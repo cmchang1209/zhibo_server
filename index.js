@@ -21,6 +21,7 @@ app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({ extended: false }))
 // 訪問靜態資源
 app.use('/static', express.static(path.resolve(__dirname, '../web/admin/dist/static')))
+app.use('*/static', express.static(path.resolve(__dirname, '../web/admin/dist/static')))
 app.use('/favicon.ico', express.static(path.resolve(__dirname, '../web/admin/dist/favicon.ico')))
 
 // 訪問單頁
@@ -41,11 +42,31 @@ io.on('connection', function(socket) {
         getEquipmentList(socket)
         setInterval(() => {
             getEquipmentList(socket)
-        }, 1000)
+        }, 5000)
     })
 
     socket.on('fcnr', function(data) {
         ioPiClient.emit('fcnr', { data: data, indexSid: socket.id })
+    })
+
+    socket.on('addRoom', function(data) {
+        addRoom(socket, data)
+    })
+
+    socket.on('getRoomList', function(data) {
+        getRoomList(socket)
+    })
+
+    socket.on('updateRoom', function(data) {
+        updateRoom(socket, data)
+    })
+
+    socket.on('getRoomData', function(data) {
+        getRoomData(socket, data)
+    })
+
+    socket.on('getChanelData', function(data) {
+        getChanelData(socket, data)
     })
 })
 
@@ -84,4 +105,49 @@ async function getEquipmentList(socket) {
     if (data) {
         socket.emit('EquipmentData', data)
     }
+}
+
+async function addRoom(socket, d) {
+    let no = await genID(3)
+    let sql = `INSERT INTO iteam_room (no, name, type) VALUES ('${no}', '${d.name}', ${d.type})`
+    let data = await query(sql)
+    if (data) {
+        socket.emit('echoAddRoom', data)
+    }
+}
+
+async function getRoomList(socket) {
+    let sql = `SELECT * FROM iteam_room`
+    let data = await query(sql)
+    if (data) {
+        socket.emit('roomList', data)
+    }
+}
+
+async function updateRoom(socket, d) {
+    let sql = `UPDATE iteam_room SET name='${d.name}', type=${d.type} WHERE id=${d.id}`
+    let data = await query(sql)
+    if (data) {
+        socket.emit('echoUpdateRoom', data)
+    }
+}
+
+async function getRoomData(socket, d) {
+    let sql = `SELECT * FROM iteam_room WHERE no='${d.no}'`
+    let data = await query(sql)
+    if (data) {
+        socket.emit('roomData', data)
+    }
+}
+
+async function getChanelData(socket, d) {
+    let sql = `SELECT * FROM iteam_chanel WHERE room_id=${d.id} AND chanel=${d.chanel}`
+    let data = await query(sql)
+    if (data) {
+        socket.emit('chanelData', { me: d, data: data })
+    }
+}
+
+async function genID(length) {
+    return Number(Math.random().toString().substr(3, length) + Date.now()).toString(36);
 }
