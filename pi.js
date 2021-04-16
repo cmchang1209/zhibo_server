@@ -5,6 +5,8 @@ const piPort = 8090
 const serverIndexPort = 8004
 const minPort = 50000
 const maxPort = 60000
+const awsHost = 'videostream.fidodarts.com'
+const FFmpegWsd = 'fidodarts'
 /* socket io server */
 const { Server } = require("socket.io")
 const piServer = new Server(piPort)
@@ -29,6 +31,11 @@ async function init() {
             socket.on("fcnrEcho", (data) => {
                 indexServer.emit('fcnrEcho', data)
             })
+
+            socket.on("echoPlayImage", (data) => {
+                indexServer.emit('echoPlayImage', data)
+            })
+
             // 當套接字斷開連接時，將其從列表中刪除：
             socket.on("disconnect", () => {
                 console.info(`Client gone [id=${socket.id}]`)
@@ -160,6 +167,25 @@ indexServer.on("connection", (socket) => {
     })
     socket.on("fcnr", (data) => {
         fcnr(data)
+    })
+
+    socket.on("runFFmpeg", (data) => {
+        var url = `http://${awsHost}:${data.port}/${FFmpegWsd}`
+        var size = data.imageInfo[0].size
+        if(data.imageInfo[0].type === 1) {
+            size = '720x404'
+            //var cmd = `-nostdin -loglevel error -f v4l2 -framerate ${data.imageInfo[0].fps} -video_size ${size} -i ${data.imageInfo[0].dev_name} -f mpegts -codec:v mpeg1video -r 59.94 -s ${size} -aspect 16:9 -an -bf 0 -b:v 524286000 -maxrate 524286000 -muxdelay 0.001 ${url}`
+            //var cam = `ffmpeg -nostdin -loglevel error -i "${data.imageInfo[0].dev_name}" -r ${data.imageInfo[0].fps} -q 0 -f mpegts -codec:v mpeg1video ${url} &`
+        } else {
+            //var cmd = `-nostdin -loglevel error -f v4l2 -framerate ${data.imageInfo[0].fps} -video_size ${size} -i ${data.imageInfo[0].dev_name} -f mpegts -codec:v mpeg1video -s ${size} -an -bf 0 -b:v 524286000 -maxrate 524286000 -muxdelay 0.001 ${url}`
+            //console.log(cmd)
+        }
+        //var cmd = `-nostdin -loglevel error -i ${data.imageInfo[0].dev_name} -r ${data.imageInfo[0].fps} -video_size ${size} -q 0 -f mpegts -codec:v mpeg1video ${url} &`
+        for (const [sid, client] of piServer.sockets.sockets.entries()) {
+            if (sid === data.piSid) {
+                client.emit('runFFmpeg', data)
+            }
+        }
     })
 })
 
