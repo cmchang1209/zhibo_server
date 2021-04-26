@@ -1,0 +1,56 @@
+/* aws與pi通訊 */
+自動啟動 zhibo_new/server/pi.js
+chmod 777 pi.js
+sudo nano /etc/systemd/system/pi.service
+
+[Unit]
+Description=Zhibo_new App For Pi
+
+[Service]
+ExecStart=/home/ubuntu/zhibo_new/server/pi.js
+Restart=always
+User=ubuntu
+# Note Debian/Ubuntu uses 'nogroup', RHEL/Fedora uses 'nobody'
+Group=ubuntu
+Environment=PATH=/usr/bin:/usr/local/bin:/home/ubuntu/zhibo_new/server/node_modules
+Environment=NODE_ENV=production
+WorkingDirectory=/home/ubuntu/zhibo_new/server
+
+[Install]
+WantedBy=multi-user.target
+
+sudo systemctl enable pi.service
+sudo systemctl start pi
+
+如果有修改，執行
+sudo systemctl daemon-reload
+
+
+/* web管理 */
+自動啟動 zhibo_new/server/index.js
+chmod 777 index.js
+sudo nano /etc/systemd/system/zhibo_admin.service
+
+[Unit]
+Description=Zhibo_new App For index
+
+[Service]
+ExecStart=/home/ubuntu/zhibo_new/server/index.js
+Restart=always
+User=ubuntu
+# Note Debian/Ubuntu uses 'nogroup', RHEL/Fedora uses 'nobody'
+Group=ubuntu
+Environment=PATH=/usr/bin:/usr/local/bin:/home/ubuntu/zhibo_new/server/node_modules
+Environment=NODE_ENV=production
+WorkingDirectory=/home/ubuntu/zhibo_new/server
+
+[Install]
+WantedBy=multi-user.target
+
+sudo systemctl start zhibo_admin
+sudo systemctl status zhibo_admin
+
+/* web view */
+自動啟動 zhibo_new/server/view.js
+chmod 777 view.js
+

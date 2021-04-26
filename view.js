@@ -70,8 +70,11 @@ async function init() {
 indexServer.on("connection", (socket) => {
     console.info(`indexClient connected [id=${socket.id}]`)
     socket.on('changeChanelStatus', function(data) {
-        changeChanelStatus(socket, data)
+        changeChanelStatus(data)
     })
+    /*socket.on('deleteImage', function(data) {
+        deleteImage(data)
+    })*/
     socket.on("disconnect", () => {
         console.info(`indexClient gone [id=${socket.id}]`)
     })
@@ -84,7 +87,7 @@ async function initTempTable() {
 }
 
 async function getRoomData(socket, d) {
-    let sql = `SELECT * FROM iteam_room WHERE no='${d.no}'`
+    let sql =`SELECT room.id, room.type, u.port_no,u.port_name, u.type AS imageType FROM iteam_room as room LEFT JOIN iteam_chanel AS cl ON cl.room_id=room.id LEFT JOIN iteam_port_used AS u ON (cl.pi_id=u.pi_id AND cl.usb_id=u.usb_id) WHERE room.no='${d.no}'`
     let data = await query(sql)
     if (data) {
         let sql = `INSERT INTO iteam_connect_view (room_id, sid) VALUES (${data[0].id}, '${socket.id}')`
@@ -94,33 +97,41 @@ async function getRoomData(socket, d) {
 }
 
 async function getChanelInfo(socket, d) {
-    let sql = `SELECT chanel.status AS c_status, chanel.usb_id, cpi.status AS p_status, cam.content, cpi.sid, p_used.port_no, pi.name FROM iteam_chanel AS chanel LEFT JOIN iteam_pi AS pi ON chanel.pi_id=pi.id LEFT JOIN iteam_connect_pi AS cpi ON chanel.pi_id=cpi.pi_id LEFT JOIN iteam_connect_cam AS cam ON chanel.pi_id=cam.pi_id LEFT JOIN iteam_port_used AS p_used ON (chanel.pi_id=p_used.pi_id AND chanel.usb_id=p_used.usb_id) WHERE chanel.room_id=${d.roomId} AND chanel.chanel=${d.chanel}`
+    let sql = `SELECT cpi.status, p_used.port_no, p_used.dev_name, p_used.type FROM iteam_chanel AS chanel LEFT JOIN iteam_connect_pi AS cpi ON chanel.pi_id=cpi.pi_id LEFT JOIN iteam_port_used AS p_used ON (chanel.pi_id=p_used.pi_id AND chanel.usb_id=p_used.usb_id) WHERE chanel.room_id=${d.roomId} AND chanel.chanel=${d.chanel}`
     let data = await query(sql)
     if (data) {
-        socket.emit('chanelInfo', { me: d, data: data })
+        d.data = data
+        socket.emit('chanelInfo', d)
     }
 }
 
-async function changeChanelStatus(socket, d) {
-    let sql = `UPDATE iteam_chanel SET status=${d.status} WHERE room_id=${d.roomId} AND chanel=${d.chanel}`
+async function changeChanelStatus(d) {
+    let sql = `SELECT sid FROM iteam_connect_view WHERE room_id=${d.roomId}`
     let data = await query(sql)
     if (data) {
-        if(d.from === 'view') {
-            socket.emit('echoChanelStatus', d)
-        } else {
-            sql = `SELECT sid FROM iteam_connect_view WHERE room_id=${d.roomId}`
-            data = await query(sql)
-            for (const [sid, client] of io.sockets.sockets.entries()) {
-                var val = data.filter((item)=>{
-                    return item.sid === sid
-                })
-                if (val.length) {
-                    client.emit('echoChanelStatus', d)
+        for (const [sid, client] of io.sockets.sockets.entries()) {
+            data.map(iteam => {
+                if (sid === iteam.sid) {
+                    client.emit('changeChanelStatus', d)
                 }
-            }
+            })
         }
     }
 }
+
+/*async function deleteImage(d) {
+    let sql = `SELECT sid FROM iteam_connect_view WHERE room_id=${d.roomId}`
+    let data = await query(sql)
+    if (data) {
+        for (const [sid, client] of io.sockets.sockets.entries()) {
+            data.map(iteam => {
+                if (sid === iteam.sid) {
+                    client.emit('deleteImage', d)
+                }
+            })
+        }
+    }
+}*/
 
 async function removeView(socket) {
     let sql = `DELETE FROM iteam_connect_view WHERE sid='${socket.id}'`
